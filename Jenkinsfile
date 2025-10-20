@@ -2,16 +2,15 @@ pipeline {
   agent any
 
   environment {
-    // Ganti 'awanmh/simple-app' dengan nama image dan repo kamu di Docker Hub
+    // Ganti dengan nama image dan repo kamu di Docker Hub
     IMAGE_NAME = 'salsabillaputriip/simple-app'
     // Registry default Docker Hub
     REGISTRY = 'https://index.docker.io/v1/'
-    // Ganti 'dockerhub-credentials' dengan ID credential Docker Hub kamu di Jenkins
+    // Ganti dengan ID credential Docker Hub kamu di Jenkins
     REGISTRY_CREDENTIALS = 'dockerhub-credentials'
   }
 
   stages {
-
     stage('Checkout') {
       steps {
         echo 'Checkout source code...'
@@ -24,18 +23,27 @@ pipeline {
         sh 'echo "Mulai build aplikasi (Linux/Mac)"'
       }
     }
+
+    stage('Build Docker Image') {
+      steps {
+        script {
+          echo "Building Docker image ${env.IMAGE_NAME}:${env.BUILD_NUMBER}..."
+          docker.build("${env.IMAGE_NAME}:${env.BUILD_NUMBER}")
+        }
+      }
+    }
+
     stage('Push Docker Image') {
       steps {
         script {
           echo "Push Docker image ke Docker Hub..."
-    
           docker.withRegistry(env.REGISTRY, env.REGISTRY_CREDENTIALS) {
             def tag = "${env.IMAGE_NAME}:${env.BUILD_NUMBER}"
-    
+
             // Push dengan tag build number
             docker.image(tag).push()
-    
-            // Tambahkan tag 'latest' dan push juga
+
+            // Tambahkan tag latest dan push juga
             docker.image(tag).tag('latest')
             docker.image("${env.IMAGE_NAME}:latest").push()
           }
