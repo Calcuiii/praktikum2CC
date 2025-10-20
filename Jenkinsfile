@@ -1,44 +1,58 @@
 pipeline {
   agent any
+
   environment {
-    IMAGE_NAME = 'salsabillaputriip/simple-app'
-    REGISTRY = 'https://index.docker.io/v1/'
+    IMAGE_NAME = 'salsabillaputriip/simple-app'            
     REGISTRY_CREDENTIALS = 'dockerhub-credentials'
   }
+
   stages {
+
     stage('Checkout') {
       steps {
+        echo 'Checkout source code...'
         checkout scm
       }
     }
+
     stage('Build') {
       steps {
-        sh 'echo "Mulai build aplikasi"'
+        bat 'echo "Mulai build aplikasi (Windows)"'
       }
     }
+
     stage('Build Docker Image') {
       steps {
-        script {
-          docker.build("${env.IMAGE_NAME}:${env.BUILD_NUMBER}")
+        withCredentials([usernamePassword(credentialsId: env.REGISTRY_CREDENTIALS, usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+          bat """
+            echo Login Docker sebelum build...
+            docker login -u %USER% -p %PASS%
+            docker build -t ${env.IMAGE_NAME}:${env.BUILD_NUMBER} .
+            docker logout
+          """
         }
       }
     }
+
     stage('Push Docker Image') {
       steps {
-        script {
-          docker.withRegistry(env.REGISTRY, env.REGISTRY_CREDENTIALS) {
-            def tag = "${env.IMAGE_NAME}:${env.BUILD_NUMBER}"
-            docker.image(tag).push()
-            docker.image(tag).tag('latest')
-            docker.image("${env.IMAGE_NAME}:latest").push()
-          }
+        withCredentials([usernamePassword(credentialsId: env.REGISTRY_CREDENTIALS, usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+          bat """
+            echo Login Docker untuk push...
+            docker login -u %USER% -p %PASS%
+            docker push ${env.IMAGE_NAME}:${env.BUILD_NUMBER}
+            docker tag ${env.IMAGE_NAME}:${env.BUILD_NUMBER} ${env.IMAGE_NAME}:latest
+            docker push ${env.IMAGE_NAME}:latest
+            docker logout
+          """
         }
       }
     }
   }
+
   post {
     always {
-      echo 'Selesai build'
+      echo 'Selesai build pipeline.'
     }
   }
 }
