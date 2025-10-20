@@ -25,12 +25,18 @@ pipeline {
       }
     }
 
-    stage('Build Docker Image') {
-      steps {
-        script {
-          echo "Building Docker image ${env.IMAGE_NAME}:${env.BUILD_NUMBER}..."
-          docker.build("${env.IMAGE_NAME}:${env.BUILD_NUMBER}")
-        }
+    stage('Push Docker Image') {
+          steps {
+              script {
+                  echo "Push Docker image ke Docker Hub..."
+                  // Langsung pakai sh command tanpa withDockerRegistry
+                  sh """
+                      echo "${env.DOCKERHUB_PSW}" | docker login -u salsabillaputriip --password-stdin
+                      docker push salsabillaputriip/simple-app:24
+                      docker logout
+                  """
+              }
+          }
       }
     }
 
