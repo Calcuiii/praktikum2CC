@@ -4,7 +4,6 @@ pipeline {
   
     IMAGE_NAME = 'Calcuiii/simple-app'
     REGISTRY = 'https://index.docker.io/v1/'
-  # ubah 'dockerhub-credentials' dengan credential yang sudah kamu buat 
     REGISTRY_CREDENTIALS = 'dockerhub-credentials'
   }
   stages {
