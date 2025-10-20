@@ -24,27 +24,6 @@ pipeline {
         sh 'echo "Mulai build aplikasi (Linux/Mac)"'
       }
     }
-
-    stage('Push Docker Image') {
-        steps {
-          script {
-            echo "Push Docker image ke Docker Hub..."
-      
-            docker.withRegistry(env.REGISTRY, env.REGISTRY_CREDENTIALS) {
-              def tag = "${env.IMAGE_NAME}:${env.BUILD_NUMBER}"
-      
-              // Push dengan tag build number
-              docker.image(tag).push()
-      
-              // Tambahkan tag 'latest' dan push juga
-              docker.image(tag).tag('latest')
-              docker.image("${env.IMAGE_NAME}:latest").push()
-            }
-          }
-        }
-      }
-    }
-
     stage('Push Docker Image') {
       steps {
         script {
