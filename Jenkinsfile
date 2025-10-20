@@ -1,34 +1,35 @@
 pipeline {
   agent any
 
-  environment {
-    // Ganti dengan nama image dan repo kamu di Docker Hub
-    IMAGE_NAME = 'salsabillaputriip/simple-app'
-    // Registry default Docker Hub
-    REGISTRY = 'https://index.docker.io/v1/'
-    // Ganti dengan ID credential Docker Hub kamu di Jenkins
-    REGISTRY_CREDENTIALS = 'dockerhub-credentials'
-  }
+environment {
+  IMAGE_NAME = "salsabillaputriip/simple-app"
+  REGISTRY = "https://index.docker.io/v1/"
+  REGISTRY_CREDENTIALS = "dockerhub-credentials"
+  DOCKER_CLI = "/Applications/Docker.app/Contents/Resources/bin/docker"
+  PATH = "/Applications/Docker.app/Contents/Resources/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+}
 
   stages {
     stage('Checkout') {
       steps {
-        echo 'Checkout source code...'
+        echo "Melakukan checkout dari SCM..."
         checkout scm
       }
     }
 
     stage('Build') {
       steps {
-        sh 'echo "Mulai build aplikasi (Linux/Mac)"'
+        echo "Mulai build aplikasi"
+        sh 'echo "Build selesai ✅"'
       }
     }
 
     stage('Build Docker Image') {
       steps {
         script {
-          echo "Building Docker image ${env.IMAGE_NAME}:${env.BUILD_NUMBER}..."
-          docker.build("${env.IMAGE_NAME}:${env.BUILD_NUMBER}")
+          echo "Membangun Docker image..."
+          sh "${DOCKER_CLI} build -t ${IMAGE_NAME}:${env.BUILD_NUMBER} ."
+          echo "Image berhasil dibuat: ${IMAGE_NAME}:${env.BUILD_NUMBER}"
         }
       }
     }
@@ -36,17 +37,19 @@ pipeline {
     stage('Push Docker Image') {
       steps {
         script {
-          echo "Push Docker image ke Docker Hub..."
-          docker.withRegistry(env.REGISTRY, env.REGISTRY_CREDENTIALS) {
-            def tag = "${env.IMAGE_NAME}:${env.BUILD_NUMBER}"
-
-            // Push dengan tag build number
-            docker.image(tag).push()
-
-            // Tambahkan tag latest dan push juga
-            docker.image(tag).tag('latest')
-            docker.image("${env.IMAGE_NAME}:latest").push()
+          echo "Push image ke Docker Hub..."
+          // Ambil username/password dari Jenkin credentials (kind: Username with password)
+          withCredentials([usernamePassword(credentialsId: env.REGISTRY_CREDENTIALS, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+            // login
+            sh "${DOCKER_CLI} login -u \"$DOCKER_USER\" -p \"$DOCKER_PASS\" ${REGISTRY}"
+            // push tag dan latest
+            sh "${DOCKER_CLI} push ${IMAGE_NAME}:${env.BUILD_NUMBER}"
+            sh "${DOCKER_CLI} tag ${IMAGE_NAME}:${env.BUILD_NUMBER} ${IMAGE_NAME}:latest || true"
+            sh "${DOCKER_CLI} push ${IMAGE_NAME}:latest"
+            // logout (opsional)
+            sh "${DOCKER_CLI} logout ${REGISTRY} || true"
           }
+          echo "Push selesai ✅"
         }
       }
     }
@@ -54,7 +57,7 @@ pipeline {
 
   post {
     always {
-      echo 'Selesai build pipeline.'
+      echo "Selesai build 🏁"
     }
   }
 }
