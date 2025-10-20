@@ -2,7 +2,11 @@ pipeline {
   agent any
 
   environment {
-    IMAGE_NAME = 'salsabillaputriip/simple-app'              
+    // Ganti 'awanmh/simple-app' dengan nama image dan repo kamu di Docker Hub
+    IMAGE_NAME = 'salsabillaputriip/simple-app'
+    // Registry default Docker Hub
+    REGISTRY = 'https://index.docker.io/v1/'
+    // Ganti 'dockerhub-credentials' dengan ID credential Docker Hub kamu di Jenkins
     REGISTRY_CREDENTIALS = 'dockerhub-credentials'
   }
 
@@ -17,34 +21,31 @@ pipeline {
 
     stage('Build') {
       steps {
-        bat 'echo "Mulai build aplikasi (Windows)"'
+        sh 'echo "Mulai build aplikasi (Linux/Mac)"'
       }
     }
 
     stage('Build Docker Image') {
       steps {
-        withCredentials([usernamePassword(credentialsId: env.REGISTRY_CREDENTIALS, usernameVariable: 'USER', passwordVariable: 'PASS')]) {
-          bat """
-            echo Login Docker sebelum build...
-            docker login -u %USER% -p %PASS%
-            docker build -t ${env.IMAGE_NAME}:${env.BUILD_NUMBER} .
-            docker logout
-          """
+        script {
+          echo "Building Docker image ${env.IMAGE_NAME}:${env.BUILD_NUMBER}..."
+          docker.build("${env.IMAGE_NAME}:${env.BUILD_NUMBER}")
         }
       }
     }
 
     stage('Push Docker Image') {
       steps {
-        withCredentials([usernamePassword(credentialsId: env.REGISTRY_CREDENTIALS, usernameVariable: 'USER', passwordVariable: 'PASS')]) {
-          bat """
-            echo Login Docker untuk push...
-            docker login -u %USER% -p %PASS%
-            docker push ${env.IMAGE_NAME}:${env.BUILD_NUMBER}
-            docker tag ${env.IMAGE_NAME}:${env.BUILD_NUMBER} ${env.IMAGE_NAME}:latest
-            docker push ${env.IMAGE_NAME}:latest
-            docker logout
-          """
+        script {
+          echo "Push Docker image ke Docker Hub..."
+          docker.withRegistry(env.REGISTRY, env.REGISTRY_CREDENTIALS) {
+            def tag = "${env.IMAGE_NAME}:${env.BUILD_NUMBER}"
+            // Push dengan tag build number
+            docker.image(tag).push()
+            // Tambahkan tag latest dan push juga
+            docker.image(tag).tag('latest')
+            docker.image("${env.IMAGE_NAME}:latest").push()
+          }
         }
       }
     }
