@@ -35,25 +35,19 @@ pipeline {
     }
 
     stage('Push Docker Image') {
-        steps {
-          script {
-            echo "Push Docker image ke Docker Hub..."
-      
-            sh '''
-              echo "Login ke Docker Hub..."
-              docker login -u salsabillaputriip -p $DOCKER_HUB_PASS
-      
-              echo "Push image ke Docker Hub..."
-              IMAGE_NAME=salsabillaputriip/simple-app
-              TAG=${BUILD_NUMBER}
-      
-              # Push tag dengan nomor build
-              docker push ${IMAGE_NAME}:${TAG}
-      
-              # Tag sebagai latest dan push juga
-              docker tag ${IMAGE_NAME}:${TAG} ${IMAGE_NAME}:latest
-              docker push ${IMAGE_NAME}:latest
-            '''
+      steps {
+        script {
+          echo "Push Docker image ke Docker Hub..."
+    
+          docker.withRegistry(env.REGISTRY, env.REGISTRY_CREDENTIALS) {
+            def tag = "${env.IMAGE_NAME}:${env.BUILD_NUMBER}"
+    
+            // Push dengan tag build number
+            docker.image(tag).push()
+    
+            // Tambahkan tag 'latest' dan push juga
+            docker.image(tag).tag('latest')
+            docker.image("${env.IMAGE_NAME}:latest").push()
           }
         }
       }
