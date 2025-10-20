@@ -26,17 +26,22 @@ pipeline {
     }
 
     stage('Push Docker Image') {
-          steps {
-              script {
-                  echo "Push Docker image ke Docker Hub..."
-                  // Langsung pakai sh command tanpa withDockerRegistry
-                  sh """
-                      echo "${env.DOCKERHUB_PSW}" | docker login -u salsabillaputriip --password-stdin
-                      docker push salsabillaputriip/simple-app:24
-                      docker logout
-                  """
-              }
+        steps {
+          script {
+            echo "Push Docker image ke Docker Hub..."
+      
+            docker.withRegistry(env.REGISTRY, env.REGISTRY_CREDENTIALS) {
+              def tag = "${env.IMAGE_NAME}:${env.BUILD_NUMBER}"
+      
+              // Push dengan tag build number
+              docker.image(tag).push()
+      
+              // Tambahkan tag 'latest' dan push juga
+              docker.image(tag).tag('latest')
+              docker.image("${env.IMAGE_NAME}:latest").push()
+            }
           }
+        }
       }
     }
 
