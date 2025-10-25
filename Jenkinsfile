@@ -1,63 +1,61 @@
 pipeline {
   agent any
-
-environment {
-  IMAGE_NAME = "salsabillaputriip/simple-app"
-  REGISTRY = "https://index.docker.io/v1/"
-  REGISTRY_CREDENTIALS = "dockerhub-credentials"
-  DOCKER_CLI = "/Applications/Docker.app/Contents/Resources/bin/docker"
-  PATH = "/Applications/Docker.app/Contents/Resources/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-}
-
+  environment {
+    IMAGE_NAME = 'salsabillaputriip/simple-app'
+    REGISTRY = 'https://index.docker.io/v1/'
+    REGISTRY_CREDENTIALS = 'dockerhub-credentials'
+  }
   stages {
     stage('Checkout') {
       steps {
-        echo "Melakukan checkout dari SCM..."
         checkout scm
       }
     }
 
     stage('Build') {
       steps {
-        echo "Mulai build aplikasi"
-        sh 'echo "Build selesai ✅"'
+        sh 'echo "Mulai build aplikasi"'
+      }
+    }
+
+    stage('Unit Test') {
+      steps {
+        sh '''
+          pip install -r requirements.txt
+          pytest --maxfail=1 --disable-warnings -q
+        '''
       }
     }
 
     stage('Build Docker Image') {
+      when {
+        expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
+      }
       steps {
         script {
-          echo "Membangun Docker image..."
-          sh "${DOCKER_CLI} build -t ${IMAGE_NAME}:${env.BUILD_NUMBER} ."
-          echo "Image berhasil dibuat: ${IMAGE_NAME}:${env.BUILD_NUMBER}"
+          docker.build("${IMAGE_NAME}:${env.BUILD_NUMBER}")
         }
       }
     }
 
     stage('Push Docker Image') {
+      when {
+        expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
+      }
       steps {
         script {
-          echo "Push image ke Docker Hub..."
-          // Ambil username/password dari Jenkin credentials (kind: Username with password)
-          withCredentials([usernamePassword(credentialsId: env.REGISTRY_CREDENTIALS, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-            // login
-            sh "${DOCKER_CLI} login -u \"$DOCKER_USER\" -p \"$DOCKER_PASS\" ${REGISTRY}"
-            // push tag dan latest
-            sh "${DOCKER_CLI} push ${IMAGE_NAME}:${env.BUILD_NUMBER}"
-            sh "${DOCKER_CLI} tag ${IMAGE_NAME}:${env.BUILD_NUMBER} ${IMAGE_NAME}:latest || true"
-            sh "${DOCKER_CLI} push ${IMAGE_NAME}:latest"
-            // logout (opsional)
-            sh "${DOCKER_CLI} logout ${REGISTRY} || true"
+          docker.withRegistry(REGISTRY, REGISTRY_CREDENTIALS) {
+            def tag = "${IMAGE_NAME}:${env.BUILD_NUMBER}"
+            docker.image(tag).push()
+            docker.image(tag).push('latest')
           }
-          echo "Push selesai ✅"
         }
       }
     }
   }
-
   post {
     always {
-      echo "Selesai build 🏁"
+      echo 'Pipeline selesai dijalankan'
     }
   }
 }
