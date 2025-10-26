@@ -4,6 +4,8 @@ pipeline {
     IMAGE_NAME = 'salsabillaputriip/simple-app'
     REGISTRY = 'https://index.docker.io/v1/'
     REGISTRY_CREDENTIALS = 'dockerhub-credentials'
+    DOCKER_CLI = "/Applications/Docker.app/Contents/Resources/bin/docker"
+    PATH = "/Applications/Docker.app/Contents/Resources/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
   }
   stages {
     stage('Checkout') {
