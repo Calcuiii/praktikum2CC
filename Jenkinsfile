@@ -62,19 +62,22 @@ pipeline {
       }
     }
     
-    stage('Push Docker Image') {
-      when {
-        expression { currentBuild.result == null || currentBuild.result == 'SUCCESS' }
-      }
+  stage('Push Docker Image') {
       steps {
         script {
-          echo "Pushing Docker image to registry..."
-          docker.withRegistry(REGISTRY, REGISTRY_CREDENTIALS) {
-            def tag = "${IMAGE_NAME}:${env.BUILD_NUMBER}"
-            docker.image(tag).push()
-            docker.image(tag).push('latest')
-            echo "Docker image pushed successfully: ${tag}"
+          echo "Push image ke Docker Hub..."
+          // Ambil username/password dari Jenkin credentials (kind: Username with password)
+          withCredentials([usernamePassword(credentialsId: env.REGISTRY_CREDENTIALS, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+            // login
+            sh "${DOCKER_CLI} login -u \"$DOCKER_USER\" -p \"$DOCKER_PASS\" ${REGISTRY}"
+            // push tag dan latest
+            sh "${DOCKER_CLI} push ${IMAGE_NAME}:${env.BUILD_NUMBER}"
+            sh "${DOCKER_CLI} tag ${IMAGE_NAME}:${env.BUILD_NUMBER} ${IMAGE_NAME}:latest || true"
+            sh "${DOCKER_CLI} push ${IMAGE_NAME}:latest"
+            // logout (opsional)
+            sh "${DOCKER_CLI} logout ${REGISTRY} || true"
           }
+          echo "Push selesai ✅"
         }
       }
     }
