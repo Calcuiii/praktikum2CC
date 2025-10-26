@@ -61,24 +61,39 @@ pipeline {
         }
       }
     }
-    
+
     stage('Push Docker Image') {
       when {
         expression { currentBuild.result == null || currentBuild.result == 'SUCCESS' }
       }
       steps {
         script {
-          echo "Pushing Docker image to registry..."
-          docker.withRegistry(REGISTRY, REGISTRY_CREDENTIALS) {
-            def tag = "${IMAGE_NAME}:${env.BUILD_NUMBER}"
-            docker.image(tag).push()
-            docker.image(tag).push('latest')
-            echo "Docker image pushed successfully: ${tag}"
+          echo "Pushing Docker image to Docker Hub..."
+          
+          withCredentials([usernamePassword(
+            credentialsId: 'dockerhub-credentials',
+            usernameVariable: 'DOCKER_USER',
+            passwordVariable: 'DOCKER_PASS'
+          )]) {
+            sh '''
+              # Login to Docker Hub
+              echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+              
+              # Push image with build number
+              docker push ${IMAGE_NAME}:${BUILD_NUMBER}
+              
+              # Tag as latest
+              docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${IMAGE_NAME}:latest
+              
+              # Push latest tag
+              docker push ${IMAGE_NAME}:latest
+              
+              echo "Successfully pushed ${IMAGE_NAME}:${BUILD_NUMBER} and ${IMAGE_NAME}:latest"
+            '''
           }
         }
       }
     }
-  }
   
   post {
     always {
